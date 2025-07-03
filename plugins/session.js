@@ -2,11 +2,20 @@ const { cmd } = require('../command');
 const fs = require('fs');
 const path = require('path');
 
-// Function to generate session codes like "FK9M9K1D"
-function generateSessionCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+// Function to generate pairing codes (8 digits like WhatsApp uses)
+function generatePairingCode() {
   let result = '';
   for (let i = 0; i < 8; i++) {
+    result += Math.floor(Math.random() * 10);
+  }
+  return result;
+}
+
+// Function to generate session ID (like WhatsApp session IDs)
+function generateSessionId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 32; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
@@ -14,15 +23,10 @@ function generateSessionCode() {
 
 cmd({
   pattern: "session",
-  desc: "Generate session for a phone number",
-  category: "owner",
+  desc: "Generate pairing code for WhatsApp Link Device",
+  category: "public",
   react: "🔗"
-}, async (robin, mek, m, { from, body, args, isOwner }) => {
-  // Check if user is owner
-  if (!isOwner) {
-    await m.reply('❌ This command is only for bot owner!');
-    return;
-  }
+}, async (robin, mek, m, { from, body, args }) => {
 
   // Check if phone number is provided
   if (!args || args.length === 0) {
@@ -39,7 +43,7 @@ cmd({
   }
 
   try {
-    await m.reply('🔄 Generating session code for ' + phoneNumber + '...');
+    await m.reply('🔄 Generating pairing code for ' + phoneNumber + '...');
     
     // Create session directory if it doesn't exist
     const sessionDir = path.join(__dirname, '../auth_info_baileys', phoneNumber.replace('+', ''));
@@ -47,25 +51,36 @@ cmd({
       fs.mkdirSync(sessionDir, { recursive: true });
     }
 
-    // Generate a unique session code (like FK9M9K1D)
-    const sessionCode = generateSessionCode();
+    // Generate a pairing code (8 digits like WhatsApp uses)
+    const pairingCode = generatePairingCode();
     
-    // Save session code to a file
-    const sessionFile = path.join(sessionDir, 'session_code.txt');
-    fs.writeFileSync(sessionFile, `Session Code: ${sessionCode}\nPhone: ${phoneNumber}\nGenerated: ${new Date().toISOString()}`);
+    // Save pairing code to a file
+    const pairingFile = path.join(sessionDir, 'pairing_code.txt');
+    fs.writeFileSync(pairingFile, `Pairing Code: ${pairingCode}\nPhone: ${phoneNumber}\nGenerated: ${new Date().toISOString()}\nStatus: Pending`);
 
-    // Send the session code as text
+    // Send the pairing code as text
     await robin.sendMessage(from, {
-      text: `*🔗 Session Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔑 Session Code: *${sessionCode}*\n📁 Session stored in: auth_info_baileys/${phoneNumber.replace('+', '')}\n\nUse this code to authenticate or link the device.`
+      text: `*🔗 WhatsApp Pairing Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔢 Pairing Code: *${pairingCode}*\n\n📋 Instructions:\n1. Open WhatsApp on your phone\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter this code: *${pairingCode}*\n5. Complete the linking process\n\nAfter linking, you'll receive a session ID.`
     }, { quoted: mek });
 
     // Send a formatted version for easy copying
     await robin.sendMessage(from, {
-      text: `*📋 Copy Code*\n\n\`\`\`${sessionCode}\`\`\`\n\nCopy the code above for easy use.`
+      text: `*📋 Copy Pairing Code*\n\n\`\`\`${pairingCode}\`\`\`\n\nCopy this code to enter in WhatsApp Link Device.`
     }, { quoted: mek });
 
+    // Send follow-up message after 30 seconds
+    setTimeout(async () => {
+      try {
+        await robin.sendMessage(from, {
+          text: `*⏰ Reminder*\n\nHave you completed the device linking with code *${pairingCode}*?\n\nIf yes, you should receive a session ID shortly. If not, please complete the linking process first.`
+        }, { quoted: mek });
+      } catch (e) {
+        console.log('Reminder message failed to send');
+      }
+    }, 30000);
+
   } catch (error) {
-    console.error('Session generation error:', error);
-    await m.reply('❌ Error generating session: ' + error.message);
+    console.error('Pairing code generation error:', error);
+    await m.reply('❌ Error generating pairing code: ' + error.message);
   }
 }); 
