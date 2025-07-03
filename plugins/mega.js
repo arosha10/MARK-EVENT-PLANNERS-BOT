@@ -10,17 +10,25 @@ const MEGA_PASSWORD = process.env.MEGA_PASSWORD || 'herakuwhatsappbot@gmail.com'
 // Function to initialize MEGA client
 async function getMegaClient() {
   try {
+    if (!MEGA_EMAIL || !MEGA_PASSWORD) {
+      throw new Error('MEGA credentials not configured. Please set MEGA_EMAIL and MEGA_PASSWORD environment variables.');
+    }
     const storage = await File.fromCredentials(MEGA_EMAIL, MEGA_PASSWORD);
     return storage;
   } catch (error) {
     console.error('MEGA client initialization error:', error);
-    throw new Error('Failed to connect to MEGA account');
+    throw new Error('Failed to connect to MEGA account: ' + error.message);
   }
 }
 
 // Function to download file from MEGA
 async function downloadFromMega(megaLink, outputPath) {
   try {
+    // Validate MEGA link format
+    if (!megaLink || !megaLink.includes('mega.nz/file/') || megaLink === 'https://mega.nz/file/') {
+      throw new Error('Invalid MEGA link format. Please provide a complete MEGA file link.');
+    }
+    
     const file = File.fromLink(megaLink);
     const stream = file.download();
     const writeStream = fs.createWriteStream(outputPath);
@@ -64,8 +72,8 @@ cmd({
 
   const megaLink = args[0];
   
-  if (!megaLink.includes('mega.nz')) {
-    await m.reply('❌ Invalid MEGA link! Please provide a valid MEGA link.');
+  if (!megaLink || !megaLink.includes('mega.nz/file/') || megaLink === 'https://mega.nz/file/') {
+    await m.reply('❌ Invalid MEGA link! Please provide a complete MEGA file link.\n\nExample: .megadl https://mega.nz/file/abc123#def456');
     return;
   }
 
