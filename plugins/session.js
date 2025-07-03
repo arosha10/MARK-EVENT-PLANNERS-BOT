@@ -1,5 +1,4 @@
 const { cmd } = require('../command');
-const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
@@ -40,7 +39,7 @@ cmd({
   }
 
   try {
-    await m.reply('🔄 Generating session QR code for ' + phoneNumber + '...');
+    await m.reply('🔄 Generating session code for ' + phoneNumber + '...');
     
     // Create session directory if it doesn't exist
     const sessionDir = path.join(__dirname, '../auth_info_baileys', phoneNumber.replace('+', ''));
@@ -51,27 +50,18 @@ cmd({
     // Generate a unique session code (like FK9M9K1D)
     const sessionCode = generateSessionCode();
     
-    // Generate QR code with the session code
-    const qrBuffer = await qrcode.toBuffer(sessionCode, {
-      errorCorrectionLevel: 'H',
-      type: 'image/png',
-      quality: 0.92,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
+    // Save session code to a file
+    const sessionFile = path.join(sessionDir, 'session_code.txt');
+    fs.writeFileSync(sessionFile, `Session Code: ${sessionCode}\nPhone: ${phoneNumber}\nGenerated: ${new Date().toISOString()}`);
 
-    // Send QR code image
+    // Send the session code as text
     await robin.sendMessage(from, {
-      image: qrBuffer,
-      caption: `*🔗 Session QR Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔑 Session Code: ${sessionCode}\n📁 Session stored in: auth_info_baileys/${phoneNumber.replace('+', '')}\n\nScan this QR code to get the session code: ${sessionCode}`
+      text: `*🔗 Session Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔑 Session Code: *${sessionCode}*\n📁 Session stored in: auth_info_baileys/${phoneNumber.replace('+', '')}\n\nUse this code to authenticate or link the device.`
     }, { quoted: mek });
 
-    // Also send the session code as text
+    // Send a formatted version for easy copying
     await robin.sendMessage(from, {
-      text: `*🔑 Session Code*\n\n${sessionCode}\n\nUse this code to authenticate or link the device.`
+      text: `*📋 Copy Code*\n\n\`\`\`${sessionCode}\`\`\`\n\nCopy the code above for easy use.`
     }, { quoted: mek });
 
   } catch (error) {
