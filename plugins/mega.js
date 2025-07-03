@@ -4,8 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 // MEGA account configuration
-const MEGA_EMAIL = process.env.MEGA_EMAIL || '';
-const MEGA_PASSWORD = process.env.MEGA_PASSWORD || '';
+const MEGA_EMAIL = process.env.MEGA_EMAIL || 'herakuwhatsappbot@gmail.com';
+const MEGA_PASSWORD = process.env.MEGA_PASSWORD || 'herakuwhatsappbot@gmail.com';
 
 // Function to initialize MEGA client
 async function getMegaClient() {
