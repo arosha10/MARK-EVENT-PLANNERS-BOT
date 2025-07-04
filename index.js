@@ -25,10 +25,19 @@ if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
   } else {
     console.log('Downloading session from MEGA...');
     console.log('Session ID:', config.SESSION_ID);
+    console.log('Session ID length:', config.SESSION_ID.length);
+    console.log('Session ID includes hash:', config.SESSION_ID.includes('#'));
     
-    const sessdata = config.SESSION_ID;
+    const sessdata = decodeURIComponent(config.SESSION_ID);
     // The SESSION_ID should already be a complete MEGA link or file ID
-    const megaLink = sessdata.startsWith('http') ? sessdata : 'https://mega.nz/file/' + sessdata;
+    // Handle the case where SESSION_ID contains a hash (#) character
+    let megaLink;
+    if (sessdata.startsWith('http')) {
+      megaLink = sessdata;
+    } else {
+      // Ensure the full session ID including hash is used
+      megaLink = 'https://mega.nz/file/' + sessdata;
+    }
     console.log('MEGA Link:', megaLink);
     
     // Create auth_info_baileys directory if it doesn't exist

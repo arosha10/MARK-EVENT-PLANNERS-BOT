@@ -4,9 +4,11 @@
   "description": "A WhatsApp bot created using Node.js",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start index.js --deep-monitoring --attach --name '🌀ONYX MD🔥BOT👾'",
+    "start": "node index.js",
+    "dev": "pm2 start index.js --deep-monitoring --attach --name '🌀ONYX MD🔥BOT👾'",
     "stop": "pm2 stop '🌀ONYX MD🔥BOT👾'",
-    "restart": "pm2 restart '🌀ONYX MD🔥BOT👾'"
+    "restart": "pm2 restart '🌀ONYX MD🔥BOT👾'",
+    "deploy": "npm install && npm start"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
