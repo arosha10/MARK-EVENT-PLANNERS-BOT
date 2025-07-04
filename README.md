@@ -18,28 +18,37 @@ A powerful WhatsApp bot created by Arosh Samuditha using Node.js and Baileys.
 
 ## Installation
 
-1. **Clone the repository**
+### Windows (Recommended)
+1. **Double-click `install.bat`** to automatically install dependencies
+2. **Edit `config.env`** with your details
+3. **Double-click `start.bat`** to start the bot
+
+### Manual Installation
+1. **Install Node.js** (version 20 or higher) from https://nodejs.org/
+2. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd MARK-EVENT-PLANNERS-BOT-main
    ```
 
-2. **Install dependencies**
+3. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Configure the bot**
-   - Copy `config.env` and fill in your details:
+4. **Configure the bot**
+   - Edit `config.env` with your details:
      ```env
      OWNER_NUM=your_phone_number_without_plus
      MEGA_EMAIL=your_mega_email
      MEGA_PASSWORD=your_mega_password
      ```
 
-4. **Start the bot**
+5. **Start the bot**
    ```bash
    npm start
+   # or
+   node index.js
    ```
 
 ## Usage
