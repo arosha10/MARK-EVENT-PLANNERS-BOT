@@ -24,49 +24,161 @@ if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
     console.log('No SESSION_ID provided, bot will start without session');
   } else {
     console.log('Downloading session from MEGA...');
+    console.log('Session ID:', config.SESSION_ID);
     
     const sessdata = config.SESSION_ID;
-    const filer = File.fromURL('https://mega.nz/file/' + sessdata);
+    const megaLink = 'https://mega.nz/file/' + sessdata;
+    console.log('MEGA Link:', megaLink);
     
-    filer.loadAttributes((err, file) => {
-      if (err) {
-        console.error('Error loading MEGA file attributes:', err);
-        return;
-      }
+    // Create auth_info_baileys directory if it doesn't exist
+    const authDir = __dirname + '/auth_info_baileys';
+    if (!fs.existsSync(authDir)) {
+      fs.mkdirSync(authDir, { recursive: true });
+      console.log('Created auth_info_baileys directory');
+    }
+    
+    try {
+      const file = File.fromLink(megaLink);
+      console.log('MEGA file object created successfully');
       
-      file.download((err, stream) => {
+      // Set a timeout for the entire MEGA download process
+      const megaTimeout = setTimeout(() => {
+        console.log('MEGA download timed out after 30 seconds');
+        console.log('Bot will continue without session - you can use pairing instead');
+        createBasicSession();
+      }, 30000);
+      
+      file.loadAttributes((err, fileInfo) => {
         if (err) {
-          console.error('Error downloading from MEGA:', err);
+          console.error('Error loading MEGA file attributes:', err);
+          console.log('This could mean:');
+          clearTimeout(megaTimeout);
+          console.log('1. The MEGA link is invalid or expired');
+          console.log('2. The file has been deleted');
+          console.log('3. Network connectivity issues');
+          console.log('4. MEGA service is down');
+          console.log('Bot will continue without session - you can use pairing instead');
+          createBasicSession();
           return;
         }
         
-        try {
-          // Create auth_info_baileys directory if it doesn't exist
-          const authDir = __dirname + '/auth_info_baileys';
-          if (!fs.existsSync(authDir)) {
-            fs.mkdirSync(authDir, { recursive: true });
+        console.log('File attributes loaded successfully');
+        console.log('File name:', fileInfo.name);
+        console.log('File size:', (fileInfo.size / 1024).toFixed(2), 'KB');
+        
+        file.download((err, stream) => {
+          if (err) {
+            clearTimeout(megaTimeout);
+            console.error('Error downloading from MEGA:', err);
+            console.log('Bot will continue without session - you can use pairing instead');
+            createBasicSession();
+            return;
           }
           
-          const writeStream = fs.createWriteStream(__dirname + '/auth_info_baileys/creds.json');
+          console.log('Download started, stream received');
+          console.log('Stream type:', typeof stream);
+          console.log('Stream has pipe method:', typeof stream.pipe === 'function');
           
-          // Handle the stream properly
-          if (stream && typeof stream.pipe === 'function') {
-            stream.pipe(writeStream);
-            writeStream.on('finish', () => {
-              console.log('Session downloaded ✅');
-            });
-            writeStream.on('error', (err) => {
-              console.error('Error writing session file:', err);
-            });
-          } else {
-            console.error('Invalid stream received from MEGA');
+          try {
+            const writeStream = fs.createWriteStream(__dirname + '/auth_info_baileys/creds.json');
+            console.log('Write stream created');
+            
+            // Handle the stream properly
+            if (stream && typeof stream.pipe === 'function') {
+              console.log('Stream is valid, starting download...');
+              stream.pipe(writeStream);
+              
+              writeStream.on('finish', () => {
+                clearTimeout(megaTimeout);
+                console.log('Session downloaded ✅');
+                console.log('File saved to:', __dirname + '/auth_info_baileys/creds.json');
+              });
+              
+              writeStream.on('error', (err) => {
+                console.error('Error writing session file:', err);
+                console.log('Bot will continue without session - you can use pairing instead');
+              });
+              
+              stream.on('error', (streamErr) => {
+                console.error('Stream error:', streamErr);
+                console.log('Bot will continue without session - you can use pairing instead');
+              });
+              
+              stream.on('end', () => {
+                console.log('Stream ended successfully');
+              });
+              
+            } else {
+              console.error('Invalid stream received from MEGA');
+              console.log('Stream object:', stream);
+              console.log('Stream type:', typeof stream);
+              if (stream) {
+                console.log('Stream properties:', Object.keys(stream));
+              }
+              clearTimeout(megaTimeout);
+              console.log('Bot will continue without session - you can use pairing instead');
+              createBasicSession();
+            }
+          } catch (error) {
+            clearTimeout(megaTimeout);
+            console.error('Error setting up file stream:', error);
+            console.log('Bot will continue without session - you can use pairing instead');
+            createBasicSession();
           }
-        } catch (error) {
-          console.error('Error setting up file stream:', error);
-        }
+        });
       });
-    });
+    } catch (error) {
+      console.error('Error creating MEGA file object:', error);
+      console.log('This could mean:');
+      console.log('1. Invalid MEGA link format');
+      console.log('2. Network connectivity issues');
+      console.log('3. MEGA service is down');
+      console.log('Bot will continue without session - you can use pairing instead');
+      createBasicSession();
+    }
   }
+}
+
+// Create basic session structure if MEGA download fails
+function createBasicSession() {
+  const authDir = __dirname + '/auth_info_baileys';
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+  }
+  
+  // Create a basic creds.json structure
+  const basicCreds = {
+    noiseKey: {
+      private: Buffer.alloc(32),
+      public: Buffer.alloc(32)
+    },
+    signedIdentityKey: {
+      private: Buffer.alloc(32),
+      public: Buffer.alloc(32)
+    },
+    signedPreKey: {
+      keyPair: {
+        private: Buffer.alloc(32),
+        public: Buffer.alloc(32)
+      },
+      signature: Buffer.alloc(64),
+      keyId: 1
+    },
+    registrationId: 0,
+    advSignedIdentityKey: {
+      private: Buffer.alloc(32),
+      public: Buffer.alloc(32)
+    },
+    processedHistoryMessages: [],
+    nextPreKeyId: 1,
+    firstUnuploadedPreKeyId: 1,
+    accountSettings: {
+      unarchiveChats: false
+    }
+  };
+  
+  fs.writeFileSync(authDir + '/creds.json', JSON.stringify(basicCreds, null, 2));
+  console.log('Created basic session structure for pairing');
 }
 
 // Express server setup
@@ -76,6 +188,17 @@ const port = process.env.PORT || 8000;
 
 async function connectToWA() {
   console.log('Connecting 🌀ONYX MD🔥BOT👾...');
+  
+  // Ensure we have a session directory and basic structure
+  const authDir = __dirname + '/auth_info_baileys';
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+  }
+  
+  if (!fs.existsSync(authDir + '/creds.json')) {
+    console.log('No session found, creating basic structure for pairing...');
+    createBasicSession();
+  }
   
   const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/auth_info_baileys/');
   var { version } = await fetchLatestBaileysVersion();
