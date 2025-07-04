@@ -1,3 +1,95 @@
+# 🌀ONYX MD🔥BOT👾
+
+A powerful WhatsApp bot created by Arosh Samuditha using Node.js and Baileys.
+
+## Features
+
+- 🔗 **Session Pairing**: Generate pairing codes for WhatsApp Web
+- 📁 **MEGA Integration**: Store sessions securely on MEGA
+- 🌐 **Web Interface**: Generate pairing codes via browser
+- 🤖 **Multi-Platform**: Works on various platforms
+- 🔧 **Plugin System**: Easy to extend with custom plugins
+
+## Prerequisites
+
+- Node.js 20 or higher
+- npm or yarn
+- A MEGA account (for session storage)
+
+## Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd MARK-EVENT-PLANNERS-BOT-main
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure the bot**
+   - Copy `config.env` and fill in your details:
+     ```env
+     OWNER_NUM=your_phone_number_without_plus
+     MEGA_EMAIL=your_mega_email
+     MEGA_PASSWORD=your_mega_password
+     ```
+
+4. **Start the bot**
+   ```bash
+   npm start
+   ```
+
+## Usage
+
+### Pairing a New Session
+
+1. **Via WhatsApp**: Send `.pair <phone_number>` to the bot
+2. **Via Web Interface**: Visit `http://localhost:8000/pair` in your browser
+
+### Available Commands
+
+- `.test` - Test if the bot is working
+- `.pair <number>` - Generate pairing code for a phone number
+- `.alive` - Check if bot is alive
+- `.owner` - Owner commands
+
+## Troubleshooting
+
+### Login Issues
+
+If the bot doesn't log in:
+
+1. **Check Node.js version**: Ensure you're using Node.js 20+
+2. **Clear session data**: Delete the `auth_info_baileys` folder
+3. **Check MEGA credentials**: Verify your MEGA email and password
+4. **Restart the bot**: Use `npm restart`
+
+### Pairing Issues
+
+If pairing fails:
+
+1. **Check phone number format**: Use international format without +
+2. **Wait for timeout**: The process has a 2-minute timeout
+3. **Try again**: Use `.pair <number>` command again
+4. **Check WhatsApp**: Ensure the phone has WhatsApp installed
+
+## Support
+
+- **GitHub**: https://github.com/aroshsamuditha/ONYX-MD
+- **YouTube**: https://www.youtube.com/@ONYXSTUDIO2005
+- **TikTok**: https://www.tiktok.com/@onyxstudio_byarosh
+
+## License
+
+This project is licensed under the MIT License.
+
+---
+
+**Created by Arosh Samuditha**
+
 # ONYX-MD 
 ### **A JAVASCRIPT WHATSAPP BOT 🌀🔥**
 
