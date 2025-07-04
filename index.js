@@ -21,23 +21,52 @@ const ownerNumber = config.OWNER_NUM;
 // Check if session exists, if not download from MEGA
 if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
   if (!config.SESSION_ID) {
-    return console.log('Please add your session to SESSION_ID env !!');
-  }
-  
-  const sessdata = config.SESSION_ID;
-  const filer = File.fromURL('https://mega.nz/file/' + sessdata);
-  
-  filer.loadAttributes((err, file) => {
-    if (err) throw err;
-    file.download((err, stream) => {
-      if (err) throw err;
-      const writeStream = fs.createWriteStream(__dirname + '/auth_info_baileys/creds.json');
-      stream.pipe(writeStream);
-      writeStream.on('finish', () => {
-        console.log('Session downloaded ✅');
+    console.log('No SESSION_ID provided, bot will start without session');
+  } else {
+    console.log('Downloading session from MEGA...');
+    
+    const sessdata = config.SESSION_ID;
+    const filer = File.fromURL('https://mega.nz/file/' + sessdata);
+    
+    filer.loadAttributes((err, file) => {
+      if (err) {
+        console.error('Error loading MEGA file attributes:', err);
+        return;
+      }
+      
+      file.download((err, stream) => {
+        if (err) {
+          console.error('Error downloading from MEGA:', err);
+          return;
+        }
+        
+        try {
+          // Create auth_info_baileys directory if it doesn't exist
+          const authDir = __dirname + '/auth_info_baileys';
+          if (!fs.existsSync(authDir)) {
+            fs.mkdirSync(authDir, { recursive: true });
+          }
+          
+          const writeStream = fs.createWriteStream(__dirname + '/auth_info_baileys/creds.json');
+          
+          // Handle the stream properly
+          if (stream && typeof stream.pipe === 'function') {
+            stream.pipe(writeStream);
+            writeStream.on('finish', () => {
+              console.log('Session downloaded ✅');
+            });
+            writeStream.on('error', (err) => {
+              console.error('Error writing session file:', err);
+            });
+          } else {
+            console.error('Invalid stream received from MEGA');
+          }
+        } catch (error) {
+          console.error('Error setting up file stream:', error);
+        }
       });
     });
-  });
+  }
 }
 
 // Express server setup

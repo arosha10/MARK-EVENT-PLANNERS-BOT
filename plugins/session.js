@@ -71,12 +71,25 @@ async function uploadToMega(fileStream, fileName) {
   try {
     const { File } = require('megajs');
     const storage = await File.fromCredentials(MEGA_EMAIL, MEGA_PASSWORD);
-    const file = storage.upload({
-      name: fileName,
-      size: fs.statSync(fileStream.path).size
-    }, fileStream);
     
-    return file.link;
+    return new Promise((resolve, reject) => {
+      const file = storage.upload({
+        name: fileName,
+        size: fileStream.path ? fs.statSync(fileStream.path).size : 1024
+      }, fileStream);
+      
+      file.on('complete', () => {
+        resolve(file.link);
+      });
+      
+      file.on('error', (error) => {
+        reject(new Error(`Upload error: ${error.message}`));
+      });
+      
+      fileStream.on('error', (error) => {
+        reject(new Error(`File stream error: ${error.message}`));
+      });
+    });
   } catch (error) {
     throw new Error(`Failed to upload to MEGA: ${error.message}`);
   }

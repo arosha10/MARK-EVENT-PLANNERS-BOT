@@ -30,13 +30,30 @@ async function downloadFromMega(megaLink, outputPath) {
     }
     
     const file = File.fromLink(megaLink);
-    const stream = file.download();
-    const writeStream = fs.createWriteStream(outputPath);
     
     return new Promise((resolve, reject) => {
-      stream.pipe(writeStream);
-      writeStream.on('finish', () => resolve(outputPath));
-      writeStream.on('error', reject);
+      file.download((err, stream) => {
+        if (err) {
+          reject(new Error(`MEGA download error: ${err.message}`));
+          return;
+        }
+        
+        try {
+          const writeStream = fs.createWriteStream(outputPath);
+          
+          // Handle the stream properly
+          if (stream && typeof stream.pipe === 'function') {
+            stream.pipe(writeStream);
+            writeStream.on('finish', () => resolve(outputPath));
+            writeStream.on('error', (writeErr) => reject(new Error(`File write error: ${writeErr.message}`)));
+            stream.on('error', (streamErr) => reject(new Error(`Stream error: ${streamErr.message}`)));
+          } else {
+            reject(new Error('Invalid stream received from MEGA'));
+          }
+        } catch (error) {
+          reject(new Error(`Stream setup error: ${error.message}`));
+        }
+      });
     });
   } catch (error) {
     throw new Error(`Failed to download from MEGA: ${error.message}`);
@@ -47,12 +64,26 @@ async function downloadFromMega(megaLink, outputPath) {
 async function uploadToMega(filePath, fileName) {
   try {
     const storage = await getMegaClient();
-    const file = storage.upload({
-      name: fileName,
-      size: fs.statSync(filePath).size
-    }, fs.createReadStream(filePath));
     
-    return file.link;
+    return new Promise((resolve, reject) => {
+      const readStream = fs.createReadStream(filePath);
+      const file = storage.upload({
+        name: fileName,
+        size: fs.statSync(filePath).size
+      }, readStream);
+      
+      file.on('complete', () => {
+        resolve(file.link);
+      });
+      
+      file.on('error', (error) => {
+        reject(new Error(`Upload error: ${error.message}`));
+      });
+      
+      readStream.on('error', (error) => {
+        reject(new Error(`File read error: ${error.message}`));
+      });
+    });
   } catch (error) {
     throw new Error(`Failed to upload to MEGA: ${error.message}`);
   }
