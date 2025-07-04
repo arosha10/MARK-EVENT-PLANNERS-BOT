@@ -47,6 +47,14 @@ async function downloadFromMega(megaLink, outputPath) {
             writeStream.on('finish', () => resolve(outputPath));
             writeStream.on('error', (writeErr) => reject(new Error(`File write error: ${writeErr.message}`)));
             stream.on('error', (streamErr) => reject(new Error(`Stream error: ${streamErr.message}`)));
+          } else if (stream && Buffer.isBuffer(stream)) {
+            // Handle Buffer data directly
+            try {
+              fs.writeFileSync(outputPath, stream);
+              resolve(outputPath);
+            } catch (writeError) {
+              reject(new Error(`File write error: ${writeError.message}`));
+            }
           } else {
             reject(new Error('Invalid stream received from MEGA'));
           }

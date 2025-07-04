@@ -110,6 +110,20 @@ if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
                 console.log('Stream ended successfully');
               });
               
+            } else if (stream && Buffer.isBuffer(stream)) {
+              // Handle Buffer data directly
+              console.log('Received Buffer data, writing directly...');
+              try {
+                fs.writeFileSync(__dirname + '/auth_info_baileys/creds.json', stream);
+                clearTimeout(megaTimeout);
+                console.log('Session downloaded ✅');
+                console.log('File saved to:', __dirname + '/auth_info_baileys/creds.json');
+              } catch (writeError) {
+                clearTimeout(megaTimeout);
+                console.error('Error writing session file:', writeError);
+                console.log('Bot will continue without session - you can use pairing instead');
+                createBasicSession();
+              }
             } else {
               console.error('Invalid stream received from MEGA');
               console.log('Stream object:', stream);
