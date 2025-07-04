@@ -27,7 +27,8 @@ if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
     console.log('Session ID:', config.SESSION_ID);
     
     const sessdata = config.SESSION_ID;
-    const megaLink = 'https://mega.nz/file/' + sessdata;
+    // The SESSION_ID should already be a complete MEGA link or file ID
+    const megaLink = sessdata.startsWith('http') ? sessdata : 'https://mega.nz/file/' + sessdata;
     console.log('MEGA Link:', megaLink);
     
     // Create auth_info_baileys directory if it doesn't exist
@@ -38,7 +39,8 @@ if (!fs.existsSync(__dirname + '/auth_info_baileys/creds.json')) {
     }
     
     try {
-      const file = File.fromLink(megaLink);
+      // For megajs v1.3.7, we need to use File.fromURL
+      const file = File.fromURL(megaLink);
       console.log('MEGA file object created successfully');
       
       // Set a timeout for the entire MEGA download process

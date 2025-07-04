@@ -14,8 +14,8 @@ const {
 } = require("@whiskeysockets/baileys");
 
 // MEGA account configuration
-const MEGA_EMAIL = process.env.MEGA_EMAIL || 'herakuwhatsappbot@gmail.com';
-const MEGA_PASSWORD = process.env.MEGA_PASSWORD || 'herakuwhatsappbot@gmail.com';
+const MEGA_EMAIL = process.env.MEGA_EMAIL || '';
+const MEGA_PASSWORD = process.env.MEGA_PASSWORD || '';
 
 // Function to generate pairing codes (8 digits like WhatsApp uses)
 function generatePairingCode() {

@@ -4,14 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 // MEGA account configuration
-const MEGA_EMAIL = process.env.MEGA_EMAIL || 'herakuwhatsappbot@gmail.com';
-const MEGA_PASSWORD = process.env.MEGA_PASSWORD || 'herakuwhatsappbot@gmail.com';
+const MEGA_EMAIL = process.env.MEGA_EMAIL || '';
+const MEGA_PASSWORD = process.env.MEGA_PASSWORD || '';
 
 // Function to initialize MEGA client
 async function getMegaClient() {
   try {
     if (!MEGA_EMAIL || !MEGA_PASSWORD) {
-      throw new Error('MEGA credentials not configured. Please set MEGA_EMAIL and MEGA_PASSWORD environment variables.');
+      throw new Error('MEGA credentials not configured. Please set MEGA_EMAIL and MEGA_PASSWORD environment variables in config.env file.');
     }
     const storage = await File.fromCredentials(MEGA_EMAIL, MEGA_PASSWORD);
     return storage;
@@ -29,7 +29,7 @@ async function downloadFromMega(megaLink, outputPath) {
       throw new Error('Invalid MEGA link format. Please provide a complete MEGA file link.');
     }
     
-    const file = File.fromLink(megaLink);
+    const file = File.fromURL(megaLink);
     
     return new Promise((resolve, reject) => {
       file.download((err, stream) => {
