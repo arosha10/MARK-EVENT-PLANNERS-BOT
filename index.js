@@ -177,22 +177,22 @@ async function connectToWA() {
     if (!isOwner && isGroup && config.MODE === 'inbox') return;
     if (!isOwner && !isGroup && config.MODE === 'groups') return;
 
-    const command = require('./command');
-    const cmdName = command ? body.slice(1).trim().split('\n')[0].trim().split(' ').shift().toLowerCase() : false;
+    const commandModule = require('./command');
+    const cmdName = commandModule ? body.slice(1).trim().split('\n')[0].trim().split(' ').shift().toLowerCase() : false;
     
-    if (command) {
-      const cmd = command.commands.find((cmd) => cmd.pattern === cmdName) || command.commands.find((cmd) => cmd.alias && cmd.alias.includes(cmdName));
+    if (commandModule) {
+      const cmd = commandModule.commands.find((cmd) => cmd.pattern === cmdName) || commandModule.commands.find((cmd) => cmd.alias && cmd.alias.includes(cmdName));
       
       if (cmd) {
         if (cmd.react) robin.sendMessage(from, { react: { text: cmd.react, key: msg.key } });
         
         try {
-          cmd.function(robin, msg, sms(robin, msg), {
-            from: from,
-            quoted: quoted,
-            body: body,
-            isCmd: command,
-            command: cmdName,
+                     cmd.function(robin, msg, sms(robin, msg), {
+             from: from,
+             quoted: quoted,
+             body: body,
+             isCmd: commandModule,
+             command: cmdName,
             args: args,
             q: q,
             isGroup: isGroup,
@@ -218,14 +218,14 @@ async function connectToWA() {
     }
 
     // Handle other events
-    command.commands.forEach(async (cmd) => {
+    commandModule.commands.forEach(async (cmd) => {
       if (body && cmd.on === 'text') {
         cmd.function(robin, msg, sms(robin, msg), {
           from: from,
           l: console.log,
           quoted: quoted,
           body: body,
-          isCmd: command,
+          isCmd: commandModule,
           command: cmd,
           args: args,
           q: q,
@@ -252,7 +252,7 @@ async function connectToWA() {
             l: console.log,
             quoted: quoted,
             body: body,
-            isCmd: command,
+            isCmd: commandModule,
             command: cmd,
             args: args,
             q: q,
@@ -279,7 +279,7 @@ async function connectToWA() {
               l: console.log,
               quoted: quoted,
               body: body,
-              isCmd: command,
+              isCmd: commandModule,
               command: cmd,
               args: args,
               q: q,
@@ -305,7 +305,7 @@ async function connectToWA() {
               l: console.log,
               quoted: quoted,
               body: body,
-              isCmd: command,
+              isCmd: commandModule,
               command: cmd,
               args: args,
               q: q,
