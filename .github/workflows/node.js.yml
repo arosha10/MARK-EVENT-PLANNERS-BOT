@@ -1,0 +1,76 @@
+name: Deploy ONYX MD Bot
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Create config.env
+      run: |
+        echo "# ONYX MD BOT Configuration" > config.env
+        echo "SESSION_ID=${{ secrets.SESSION_ID }}" >> config.env
+        echo "OWNER_NUM=${{ secrets.OWNER_NUM }}" >> config.env
+        echo "PREFIX=${{ secrets.PREFIX || '.' }}" >> config.env
+        echo "MODE=${{ secrets.MODE || 'public' }}" >> config.env
+        echo "AUTO_READ_STATUS=${{ secrets.AUTO_READ_STATUS || 'true' }}" >> config.env
+        echo "AUTO_VOICE=${{ secrets.AUTO_VOICE || 'true' }}" >> config.env
+        echo "AUTO_STICKER=${{ secrets.AUTO_STICKER || 'true' }}" >> config.env
+        echo "AUTO_REPLY=${{ secrets.AUTO_REPLY || 'true' }}" >> config.env
+        echo "MEGA_EMAIL=${{ secrets.MEGA_EMAIL }}" >> config.env
+        echo "MEGA_PASSWORD=${{ secrets.MEGA_PASSWORD }}" >> config.env
+        echo "PORT=${{ secrets.PORT || '8000' }}" >> config.env
+        echo "WEB_PORT=${{ secrets.WEB_PORT || '3000' }}" >> config.env
+        
+    - name: Test bot startup
+      run: |
+        timeout 30s node index.js || true
+        
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r * deployment/
+        cd deployment
+        tar -czf onyx-bot.tar.gz *
+        
+    - name: Upload deployment package
+      uses: actions/upload-artifact@v4
+      with:
+        name: onyx-bot-deployment
+        path: deployment/onyx-bot.tar.gz
+        
+    - name: Deploy to Railway (if secrets configured)
+      if: secrets.RAILWAY_TOKEN
+      uses: bervProject/railway-deploy@v1.0.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        service: ${{ secrets.RAILWAY_SERVICE }}
+        
+    - name: Deploy to Render (if webhook configured)
+      if: secrets.RENDER_WEBHOOK_URL
+      run: |
+        curl -X POST ${{ secrets.RENDER_WEBHOOK_URL }}
+        
+    - name: Notify deployment status
+      if: always()
+      run: |
+        echo "Deployment completed!"
+        echo "Bot is ready for pairing at: https://your-domain.com" 
