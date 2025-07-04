@@ -202,6 +202,12 @@ const express = require('express');
 const app = express();
 const port = process.env.PORT || 8000;
 
+// Start web server
+app.listen(port, () => {
+  console.log(`🌐 Web server listening on port http://localhost:${port}`);
+  console.log('📱 Access pairing interface at: http://localhost:8000');
+});
+
 async function connectToWA() {
   console.log('Connecting 🌀ONYX MD🔥BOT👾...');
   
@@ -232,8 +238,20 @@ async function connectToWA() {
     retryRequestDelayMs: 250,
   });
 
+  // Add connection timeout
+  const connectionTimeout = setTimeout(() => {
+    console.log('Connection timeout - bot may need QR code or pairing');
+    console.log('Access web interface at http://localhost:8000 for pairing');
+  }, 30000);
+
   robin.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+    
+    console.log('Connection update:', connection);
+    
+    if (qr) {
+      console.log('QR Code received - scan with WhatsApp to connect');
+    }
     
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
@@ -242,6 +260,7 @@ async function connectToWA() {
         connectToWA();
       }
     } else if (connection === 'open') {
+      clearTimeout(connectionTimeout);
       console.log(' Installing... ');
       
       // Load plugins
